@@ -1,0 +1,114 @@
+{
+  "processed_data": {
+    "columns": ["Date", "Account", "Amount", "Description"],
+    "data": [
+      ["2024-01-01", "Cash", 5000.00, "Opening Balance"],
+      ["2024-01-02", "Revenue - Sales", -12500.50, "Monthly Sales"],
+      ["2024-01-03", "Expense - Marketing", 850.75, "Marketing Campaign"],
+      ["2024-01-04", "Cash", 2500.00, "Deposit"],
+      ["2024-01-05", "Revenue - Service", -8750.25, "Consulting Revenue"],
+      ["2024-01-06", "Expense - Rent", 1200.00, "Office Rent"],
+      ["2024-01-07", "Cash", 1500.00, "Transfer"],
+      ["2024-01-08", "Revenue - Sales", -15000.00, "Product Sales"],
+      ["2024-01-09", "Expense - Utilities", 450.50, "Electricity Bill"],
+      ["2024-01-10", "Cash", 3000.00, "Client Payment"],
+      ["2024-01-11", "Expense - Marketing", 1200.00, "Digital Ads"],
+      ["2024-01-12", "Revenue - Sales", -18000.00, "Q4 Sales"],
+      ["2024-01-13", "Expense - Marketing", 950.25, "Content Creation"],
+      ["2024-01-14", "Cash", 4000.00, "Investment"],
+      ["2024-01-15", "Expense - Marketing", 750.00, "Social Media"]
+    ]
+  },
+  "movement_analysis": {
+    "ranked_movements": [
+      {
+        "account": "Revenue - Sales",
+        "movement_amount": -45500.50,
+        "movement_percentage": 15.2,
+        "significance": "High",
+        "movement_type": "Increase",
+        "commentary": "Strong sales performance driven by new product launch"
+      },
+      {
+        "account": "Expense - Marketing",
+        "movement_amount": 3750.00,
+        "movement_percentage": 8.5,
+        "significance": "Medium",
+        "movement_type": "Increase",
+        "commentary": "Marketing spend increased to support sales growth"
+      },
+      {
+        "account": "Expense - Rent",
+        "movement_amount": 1200.00,
+        "movement_percentage": 0.0,
+        "significance": "Low",
+        "movement_type": "No Change",
+        "commentary": "Rent expense remained stable"
+      }
+    ]
+  },
+  "anomaly_analysis": {
+    "combined_anomalies": [
+      {
+        "date": "2024-01-08",
+        "account": "Revenue - Sales",
+        "amount": -15000.00,
+        "anomaly_type": "Spike",
+        "severity": "High",
+        "explanation": "Unusual spike in sales revenue"
+      },
+      {
+        "date": "2024-01-11",
+        "account": "Expense - Marketing",
+        "amount": 1200.00,
+        "anomaly_type": "Increase",
+        "severity": "Medium",
+        "explanation": "Significant increase in marketing spend"
+      }
+    ]
+  },
+  "chart_configurations": {
+    "trend_charts": {
+      "revenue_trend": {
+        "chart_type": "line",
+        "data_source": "processed_data",
+        "x_axis": "Date",
+        "y_axis": "Amount",
+        "filter": "Account LIKE '%Revenue%'"
+      },
+      "expense_trend": {
+        "chart_type": "line",
+        "data_source": "processed_data",
+        "x_axis": "Date",
+        "y_axis": "Amount",
+        "filter": "Account LIKE '%Expense%'"
+      }
+    },
+    "yoy_charts": {
+      "revenue_yoy": {
+        "chart_type": "bar",
+        "data_source": "processed_data",
+        "comparison_type": "year_over_year",
+        "metric": "Revenue"
+      }
+    },
+    "waterfall_charts": {
+      "movement_waterfall": {
+        "chart_type": "waterfall",
+        "data_source": "movement_analysis",
+        "x_axis": "account",
+        "y_axis": "movement_amount"
+      }
+    }
+  },
+  "session_state": {
+    "final_processed_data": "processed_data",
+    "movement_analysis": "movement_analysis",
+    "anomaly_analysis": "anomaly_analysis",
+    "chart_configurations": "chart_configurations",
+    "chat_messages": [],
+    "chat_conversation_id": "test_conversation_001",
+    "chat_loading": false,
+    "chat_error": null
+  }
+} 

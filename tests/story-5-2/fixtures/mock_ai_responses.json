@@ -1,0 +1,92 @@
+{
+  "movement_explanations": [
+    {
+      "query": "What drove the increase in marketing expenses?",
+      "response": "Based on the data, marketing expenses increased by $3,750 (8.5%) this period. The main drivers were:\n\n• Digital Ads: $1,200 (32% of increase)\n• Content Creation: $950.25 (25% of increase)\n• Social Media: $750 (20% of increase)\n• Marketing Campaign: $850.75 (23% of increase)\n\nThis increase appears to be strategic to support the strong sales growth of $45,500.50 (15.2% increase) during the same period.",
+      "confidence": 0.95,
+      "data_sources": ["movement_analysis", "processed_data"],
+      "chart_references": ["marketing_expense_trend"]
+    }
+  ],
+  "data_summaries": [
+    {
+      "query": "How much revenue did we generate this month?",
+      "response": "Total revenue generated this month: $45,500.50\n\nBreakdown by revenue type:\n• Sales Revenue: $45,500.50 (100%)\n• Service Revenue: $8,750.25 (19.2%)\n\nThis represents a 15.2% increase compared to the previous period, driven primarily by strong product sales performance.",
+      "confidence": 0.98,
+      "data_sources": ["processed_data", "movement_analysis"],
+      "chart_references": ["revenue_trend"]
+    }
+  ],
+  "ranking_lists": [
+    {
+      "query": "Show me the top expenses",
+      "response": "Top expenses for the period:\n\n1. Marketing Expenses: $3,750.00 (47.6% of total expenses)\n2. Rent Expense: $1,200.00 (15.2% of total expenses)\n3. Utilities: $450.50 (5.7% of total expenses)\n\nTotal expenses: $7,900.50\n\nMarketing expenses are the largest category, representing nearly half of all expenses, which aligns with the strategic focus on supporting sales growth.",
+      "confidence": 0.92,
+      "data_sources": ["processed_data"],
+      "chart_references": ["expense_breakdown"]
+    }
+  ],
+  "anomaly_explanations": [
+    {
+      "query": "What caused the spike in sales revenue on January 8th?",
+      "response": "On January 8th, there was an unusual spike in sales revenue of $15,000.00. This represents a significant anomaly in the data.\n\n**Anomaly Details:**\n• Date: January 8th, 2024\n• Amount: $15,000.00\n• Type: Revenue Spike\n• Severity: High\n\n**Possible Causes:**\n• New product launch\n• Special promotion or campaign\n• Large customer order\n• Seasonal sales event\n\nThis spike contributed significantly to the overall 15.2% revenue increase for the period.",
+      "confidence": 0.88,
+      "data_sources": ["anomaly_analysis", "processed_data"],
+      "chart_references": ["revenue_trend", "anomaly_detection"]
+    }
+  ],
+  "comparison_analyses": [
+    {
+      "query": "Compare marketing expenses between January and February",
+      "response": "Marketing expenses comparison:\n\n**January 2024:**\n• Total: $3,750.00\n• Breakdown:\n  - Digital Ads: $1,200.00\n  - Content Creation: $950.25\n  - Social Media: $750.00\n  - Marketing Campaign: $850.75\n\n**February 2024:**\n• Data not available for comparison\n\n**Note:** Only January data is available in the current dataset. To provide a proper comparison, February data would need to be uploaded.",
+      "confidence": 0.85,
+      "data_sources": ["processed_data"],
+      "chart_references": ["marketing_expense_trend"]
+    }
+  ],
+  "trend_analyses": [
+    {
+      "query": "What are the trends in our cash flow over the last quarter?",
+      "response": "Cash flow trends for the period:\n\n**Overall Trend:** Positive cash flow with consistent inflows\n\n**Key Patterns:**\n• Opening Balance: $5,000.00\n• Total Inflows: $12,000.00\n• Total Outflows: $7,900.50\n• Net Cash Flow: +$4,099.50\n\n**Cash Flow Drivers:**\n• Revenue Generation: $45,500.50 (primary inflow)\n• Operating Expenses: $7,900.50 (primary outflow)\n• Other Inflows: $12,000.00 (deposits, transfers, payments)\n\n**Trend Analysis:**\nThe cash flow shows a healthy positive trend, with strong revenue generation outpacing expenses. The net positive cash flow of $4,099.50 indicates good financial health.",
+      "confidence": 0.90,
+      "data_sources": ["processed_data"],
+      "chart_references": ["cash_flow_trend"]
+    }
+  ],
+  "error_responses": [
+    {
+      "query": "What is the revenue for account XYZ?",
+      "response": "I couldn't find any data for account 'XYZ' in the current dataset. \n\n**Available accounts include:**\n• Revenue - Sales\n• Revenue - Service\n• Expense - Marketing\n• Expense - Rent\n• Expense - Utilities\n• Cash\n\nPlease try asking about one of these accounts, or upload data that includes the XYZ account.",
+      "confidence": 0.95,
+      "data_sources": ["processed_data"],
+      "chart_references": []
+    },
+    {
+      "query": "Show me the data for last year",
+      "response": "I don't have data available for last year in the current dataset. The available data covers the period from January 1st to January 15th, 2024.\n\n**Available time period:** January 1-15, 2024\n\nTo analyze last year's data, please upload historical data files that include the previous year's information.",
+      "confidence": 0.98,
+      "data_sources": ["processed_data"],
+      "chart_references": []
+    }
+  ],
+  "follow_up_responses": [
+    {
+      "query": "Tell me more about that",
+      "context": "Previous query about marketing expenses",
+      "response": "Here's more detailed information about the marketing expenses:\n\n**Detailed Breakdown:**\n• Digital Ads ($1,200.00): 32% of total marketing spend\n  - Likely includes Google Ads, social media advertising\n  - Highest individual expense category\n\n• Content Creation ($950.25): 25% of total marketing spend\n  - Blog posts, videos, whitepapers\n  - Content marketing initiatives\n\n• Social Media ($750.00): 20% of total marketing spend\n  - Social media management and campaigns\n  - Community engagement activities\n\n• Marketing Campaign ($850.75): 23% of total marketing spend\n  - Integrated marketing campaigns\n  - Brand awareness initiatives\n\n**Strategic Context:**\nThis marketing investment appears to be supporting the strong sales performance, with a 15.2% revenue increase during the same period.",
+      "confidence": 0.93,
+      "data_sources": ["processed_data", "movement_analysis"],
+      "chart_references": ["marketing_expense_breakdown"]
+    }
+  ],
+  "chart_generation_requests": [
+    {
+      "query": "Can you show me a chart for that?",
+      "context": "Previous query about sales trends",
+      "response": "I'll generate a chart showing the sales trends for you.\n\n**Chart Generated:** Sales Revenue Trend (January 1-15, 2024)\n\n**Key Insights from the Chart:**\n• Strong upward trend in sales revenue\n• Peak on January 8th ($15,000.00) - the anomaly we discussed\n• Consistent performance throughout the period\n• Total sales revenue: $45,500.50\n\n**Chart Reference:** sales_revenue_trend_chart\n\nYou can also view this chart in the Visualizations tab for more detailed analysis.",
+      "confidence": 0.89,
+      "data_sources": ["processed_data"],
+      "chart_references": ["sales_revenue_trend_chart"]
+    }
+  ]
+} 

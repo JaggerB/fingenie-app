@@ -1,0 +1,165 @@
+{
+  "simple_queries": [
+    {
+      "query": "What drove the increase in marketing expenses?",
+      "expected_entities": {
+        "accounts": ["marketing", "expenses"],
+        "time_period": null,
+        "metrics": ["increase"],
+        "intent": "movement_analysis"
+      },
+      "expected_response_type": "movement_explanation"
+    },
+    {
+      "query": "How much revenue did we generate this month?",
+      "expected_entities": {
+        "accounts": ["revenue"],
+        "time_period": "this month",
+        "metrics": ["amount"],
+        "intent": "data_query"
+      },
+      "expected_response_type": "data_summary"
+    },
+    {
+      "query": "Show me the top expenses",
+      "expected_entities": {
+        "accounts": ["expenses"],
+        "time_period": null,
+        "metrics": ["top"],
+        "intent": "ranking_query"
+      },
+      "expected_response_type": "ranking_list"
+    }
+  ],
+  "complex_queries": [
+    {
+      "query": "What caused the spike in sales revenue on January 8th?",
+      "expected_entities": {
+        "accounts": ["sales", "revenue"],
+        "time_period": "January 8th",
+        "metrics": ["spike"],
+        "intent": "anomaly_analysis"
+      },
+      "expected_response_type": "anomaly_explanation"
+    },
+    {
+      "query": "Compare marketing expenses between January and February",
+      "expected_entities": {
+        "accounts": ["marketing", "expenses"],
+        "time_period": ["January", "February"],
+        "metrics": ["compare"],
+        "intent": "comparison_query"
+      },
+      "expected_response_type": "comparison_analysis"
+    },
+    {
+      "query": "What are the trends in our cash flow over the last quarter?",
+      "expected_entities": {
+        "accounts": ["cash flow"],
+        "time_period": "last quarter",
+        "metrics": ["trends"],
+        "intent": "trend_analysis"
+      },
+      "expected_response_type": "trend_analysis"
+    }
+  ],
+  "follow_up_queries": [
+    {
+      "query": "Tell me more about that",
+      "context": "Previous query about marketing expenses",
+      "expected_entities": {
+        "accounts": ["marketing", "expenses"],
+        "time_period": null,
+        "metrics": ["details"],
+        "intent": "follow_up"
+      },
+      "expected_response_type": "detailed_explanation"
+    },
+    {
+      "query": "What about the revenue side?",
+      "context": "Previous query about expenses",
+      "expected_entities": {
+        "accounts": ["revenue"],
+        "time_period": null,
+        "metrics": ["comparison"],
+        "intent": "follow_up"
+      },
+      "expected_response_type": "comparison_analysis"
+    },
+    {
+      "query": "Can you show me a chart for that?",
+      "context": "Previous query about sales trends",
+      "expected_entities": {
+        "accounts": ["sales"],
+        "time_period": null,
+        "metrics": ["chart"],
+        "intent": "visualization_request"
+      },
+      "expected_response_type": "chart_generation"
+    }
+  ],
+  "edge_cases": [
+    {
+      "query": "What is the meaning of life?",
+      "expected_entities": {
+        "accounts": [],
+        "time_period": null,
+        "metrics": [],
+        "intent": "unrelated_query"
+      },
+      "expected_response_type": "error_handling"
+    },
+    {
+      "query": "",
+      "expected_entities": {
+        "accounts": [],
+        "time_period": null,
+        "metrics": [],
+        "intent": "empty_query"
+      },
+      "expected_response_type": "error_handling"
+    },
+    {
+      "query": "Show me data from 2099",
+      "expected_entities": {
+        "accounts": [],
+        "time_period": "2099",
+        "metrics": [],
+        "intent": "future_date"
+      },
+      "expected_response_type": "no_data_found"
+    }
+  ],
+  "error_scenarios": [
+    {
+      "query": "What is the revenue for account XYZ?",
+      "expected_entities": {
+        "accounts": ["XYZ"],
+        "time_period": null,
+        "metrics": ["revenue"],
+        "intent": "data_query"
+      },
+      "expected_response_type": "account_not_found"
+    },
+    {
+      "query": "Show me the data for last year",
+      "expected_entities": {
+        "accounts": [],
+        "time_period": "last year",
+        "metrics": [],
+        "intent": "data_query"
+      },
+      "expected_response_type": "no_data_found"
+    },
+    {
+      "query": "What is the total for all accounts?",
+      "expected_entities": {
+        "accounts": ["all"],
+        "time_period": null,
+        "metrics": ["total"],
+        "intent": "aggregation_query"
+      },
+      "expected_response_type": "aggregation_result"
+    }
+  ]
+} 

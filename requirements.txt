@@ -13,3 +13,11 @@ openpyxl>=3.1.0
 
 # AI/LLM integration for Story 3.2
 openai>=1.0.0
+
+# Visualization libraries for Story 4.1
+plotly>=5.17.0
+
+# Testing dependencies for Story 3.2 QA
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-mock>=3.11.0
