@@ -10,8 +10,21 @@ def _clean_amount(value) -> float:
         return float('nan')
     try:
         if isinstance(value, str):
-            cleaned = value.replace('USD', '').replace('GBP', '').replace('$', '').replace(',', '').strip()
-            return float(cleaned)
+            txt = value.strip()
+            # Handle negative amounts in parentheses e.g., (1,234.00)
+            neg = False
+            if txt.startswith('(') and txt.endswith(')'):
+                neg = True
+                txt = txt[1:-1]
+            cleaned = (
+                txt.replace('USD', '')
+                   .replace('GBP', '')
+                   .replace('$', '')
+                   .replace(',', '')
+                   .strip()
+            )
+            num = float(cleaned)
+            return -num if neg else num
         return float(value)
     except Exception:
         return float('nan')
@@ -84,6 +97,9 @@ def normalize_excel(file_bytes: bytes, filename: str) -> Tuple[pd.DataFrame, Lis
             long_df.dropna(subset=['Amount'], inplace=True)
             long_df = long_df[long_df['Amount'] != 0]
             long_df.rename(columns={label_col: 'Account'}, inplace=True)
+            # Normalize text fields
+            long_df['Account'] = long_df['Account'].astype(str).str.strip()
+            long_df['Period'] = long_df['Period'].astype(str).str.strip()
             long_df.insert(0, 'Doc', filename)
             long_df.insert(1, 'Sheet', sheet_name)
             all_facts.append(long_df[['Doc', 'Sheet', 'Account', 'Period', 'Amount']])

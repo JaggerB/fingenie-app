@@ -1309,29 +1309,118 @@ def create_docs_qa_tab():
         store = st.session_state.docs_store
         facts_df = st.session_state.facts_df
         filters = {}
-        pack = build_evidence_pack(q, facts_df, store, filters)
+        # Apply simple intent filters (month/year + account keywords like "rent")
+        filtered_df = _filter_facts_by_query(q, facts_df)
+        pack = build_evidence_pack(q, filtered_df if not filtered_df.empty else facts_df, store, filters)
 
         # Deterministic summary
         answer_lines = []
-        aggr = pack.get("aggregates", {})
-        if aggr:
-            answer_lines.append(f"Total Amount in retrieved scope: ${aggr.get('total', 0):,.2f}")
-            answer_lines.append(f"Records considered: {aggr.get('count', 0)}")
+        target_df = filtered_df if not filtered_df.empty else facts_df
+        if not target_df.empty and "Amount" in target_df.columns:
+            total = float(target_df["Amount"].sum())
+            count = int(target_df.shape[0])
+            answer_lines.append(f"Total Amount in retrieved scope: ${total:,.2f}")
+            answer_lines.append(f"Records considered: {count}")
+            # If the user mentioned a known account (e.g., rent), surface its amount for the detected period
+            acc = _extract_account_keyword(q)
+            period_label = _extract_month_label(q)
+            if acc:
+                acc_df = target_df[target_df["Account"].str.contains(acc, case=False, na=False)]
+                if not acc_df.empty:
+                    if period_label:
+                        acc_period_df = acc_df[acc_df["Period"].astype(str).str.contains(period_label, case=False, na=False)]
+                        amt = float(acc_period_df["Amount"].sum()) if not acc_period_df.empty else float(acc_df["Amount"].sum())
+                    else:
+                        amt = float(acc_df["Amount"].sum())
+                    answer_lines.append(f"{acc.title()} amount{' for ' + period_label if period_label else ''}: ${amt:,.2f}")
+        else:
+            # Offer hints if the precise filter returned nothing
+            acc = _extract_account_keyword(q)
+            if acc and "Account" in facts_df.columns:
+                acc_only = facts_df[facts_df["Account"].astype(str).str.contains(acc, case=False, na=False)]
+                if not acc_only.empty and "Period" in acc_only.columns:
+                    sample_periods = sorted(list({str(p) for p in acc_only["Period"].head(12)}))
+                    answer_lines.append("No exact match found. Nearby periods for '" + acc + "' include: " + ", ".join(sample_periods))
+                else:
+                    answer_lines.append("No matching rows found for your question.")
+            else:
+                answer_lines.append("No matching rows found for your question.")
 
         st.subheader("Answer")
         base_answer = "\n".join(answer_lines) or "I retrieved relevant rows and citations below."
 
         if use_ai and _get_openai_client()[1]:
-            ai_answer = _generate_llm_answer(q.strip(), st.session_state.facts_df, st.session_state.facts_df)
+            ai_answer = _generate_llm_answer(q.strip(), st.session_state.facts_df, filtered_df if not filtered_df.empty else facts_df)
             st.write(ai_answer)
         elif use_ai and not _available:
             st.warning("AI was toggled on, but no API key was detected. Add OPENAI_API_KEY and restart the app.")
         else:
             st.write(base_answer)
 
+        # Citations
         st.subheader("Citations")
         for c in pack.get("citations", [])[:5]:
             st.write(f"- {c.get('doc')} › {c.get('sheet')} (row {c.get('row')}): {c.get('excerpt')}")
+
+
+def _extract_month_label(query: str) -> str:
+    """Return a label like 'Dec-22', 'Dec 22', 'December 2022', or month-only 'Dec'.
+    We try to be flexible because workbooks use different month formats."""
+    q = (query or "").lower()
+    months = {
+        'jan': 'Jan', 'january': 'Jan', 'feb': 'Feb', 'february': 'Feb', 'mar': 'Mar', 'march': 'Mar',
+        'apr': 'Apr', 'april': 'Apr', 'may': 'May', 'jun': 'Jun', 'june': 'Jun', 'jul': 'Jul', 'july': 'Jul',
+        'aug': 'Aug', 'august': 'Aug', 'sep': 'Sep', 'sept': 'Sep', 'september': 'Sep', 'oct': 'Oct', 'october': 'Oct',
+        'nov': 'Nov', 'november': 'Nov', 'dec': 'Dec', 'december': 'Dec'
+    }
+    year = None
+    import re
+    m = re.search(r"20\d{2}", q)
+    if m:
+        year = m.group(0)
+    for k, abbr in months.items():
+        if k in q:
+            if year:
+                yy = year[-2:]
+                # Return multiple acceptable formats to match diverse sheets
+                return f"{abbr}-{yy}"
+            return abbr
+    return ""
+
+
+def _extract_account_keyword(query: str) -> str:
+    q = (query or "").lower()
+    keywords = ["rent", "marketing", "utilities", "revenue", "income", "expenses"]
+    for kw in keywords:
+        if kw in q:
+            return kw
+    return ""
+
+
+def _filter_facts_by_query(query: str, facts_df: pd.DataFrame) -> pd.DataFrame:
+    if facts_df is None or facts_df.empty:
+        return pd.DataFrame(columns=["Doc","Sheet","Account","Period","Amount"]) 
+    df = facts_df.copy()
+    # Account filter
+    acc = _extract_account_keyword(query)
+    if acc and "Account" in df.columns:
+        df = df[df["Account"].astype(str).str.contains(acc, case=False, na=False)]
+    # Month/year filter
+    label = _extract_month_label(query)
+    if label and "Period" in df.columns:
+        # accept various month formats
+        month_abbr = label.split('-')[0]
+        period_str = df["Period"].astype(str)
+        mask = period_str.str.contains(month_abbr, case=False, na=False)
+        if '-' in label:
+            yy = label.split('-')[1]
+            mask = mask & period_str.str.contains(yy, case=False, na=False)
+        # also match full names like December 2022
+        full_map = { 'Jan':'January', 'Feb':'February', 'Mar':'March', 'Apr':'April', 'May':'May', 'Jun':'June', 'Jul':'July', 'Aug':'August', 'Sep':'September', 'Oct':'October', 'Nov':'November', 'Dec':'December' }
+        full_name = full_map.get(month_abbr, month_abbr)
+        mask = mask | period_str.str.contains(full_name, case=False, na=False)
+        df = df[mask]
+    return df
 
 if __name__ == "__main__":
     main() 
