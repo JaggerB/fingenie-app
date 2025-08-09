@@ -7,6 +7,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import numpy as np # Added for np.number
+import os
 
 # Import Story 5.2 query engine functions
 try:
@@ -39,6 +40,133 @@ def initialize_session_state():
         st.session_state.messages = []
     if 'final_processed_data' not in st.session_state:
         st.session_state.final_processed_data = pd.DataFrame()
+    if 'use_llm' not in st.session_state:
+        st.session_state.use_llm = True
+
+# Optional OpenAI client (used for higher-quality answers)
+try:
+    from openai import OpenAI  # openai>=1.0.0
+    _OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+    OPENAI_AVAILABLE = bool(_OPENAI_API_KEY)
+    _openai_client = OpenAI(api_key=_OPENAI_API_KEY) if OPENAI_AVAILABLE else None
+except Exception:
+    OPENAI_AVAILABLE = False
+    _openai_client = None
+
+def _summarize_dataframe_for_prompt(dataframe: pd.DataFrame, max_rows: int = 5) -> dict:
+    """Create a compact, safe summary of a DataFrame for LLM prompting."""
+    if dataframe is None or dataframe.empty:
+        return {
+            "columns": [],
+            "row_count": 0,
+            "samples": [],
+            "numeric_overview": {},
+            "account_overview": {},
+            "time_overview": {}
+        }
+
+    summary: dict = {}
+    # Column types
+    column_types = {col: str(dtype) for col, dtype in dataframe.dtypes.items()}
+    summary["columns"] = column_types
+    summary["row_count"] = int(len(dataframe))
+
+    # Sample rows (head)
+    samples = dataframe.head(max_rows).copy()
+    # Ensure serializable types
+    summary["samples"] = samples.fillna("").astype(str).to_dict(orient="records")
+
+    # Numeric overview for Amount if present
+    numeric_overview = {}
+    if "Amount" in dataframe.columns:
+        amounts = pd.to_numeric(dataframe["Amount"], errors="coerce").dropna()
+        if not amounts.empty:
+            numeric_overview = {
+                "sum": float(amounts.sum()),
+                "mean": float(amounts.mean()),
+                "min": float(amounts.min()),
+                "max": float(amounts.max()),
+                "count": int(amounts.shape[0])
+            }
+    summary["numeric_overview"] = numeric_overview
+
+    # Account overview (top totals)
+    account_overview = {}
+    if "Account" in dataframe.columns and "Amount" in dataframe.columns:
+        try:
+            totals = (
+                dataframe.groupby("Account")["Amount"].sum().sort_values(ascending=False).head(10)
+            )
+            account_overview = {str(k): float(v) for k, v in totals.items()}
+        except Exception:
+            account_overview = {}
+    summary["account_overview"] = account_overview
+
+    # Time overview (months)
+    time_overview = {}
+    if "Month" in dataframe.columns and "Amount" in dataframe.columns:
+        try:
+            month_totals = (
+                dataframe.groupby("Month")["Amount"].sum().sort_values(ascending=False).head(12)
+            )
+            time_overview = {str(k): float(v) for k, v in month_totals.items()}
+        except Exception:
+            time_overview = {}
+    summary["time_overview"] = time_overview
+
+    return summary
+
+def _build_llm_system_prompt() -> str:
+    """System prompt to enforce high-quality, data-grounded answers."""
+    return (
+        "You are FinGenie, a financial analysis assistant. "
+        "Answer ONLY using the provided dataset context. If the data does not contain the answer, say so clearly. "
+        "Prefer concise, high-signal responses. Include small calculations inline where helpful (e.g., percentage = part / total). "
+        "Format with short sections and bullet points using clear labels. Avoid speculation."
+    )
+
+def _build_llm_user_prompt(query: str, dataset_summary: dict, relevant_summary: dict) -> str:
+    """Compose a compact user prompt containing dataset summaries and the user question."""
+    import json
+    safe_dataset = json.dumps(dataset_summary, ensure_ascii=False)[:5000]
+    safe_relevant = json.dumps(relevant_summary, ensure_ascii=False)[:5000]
+    return (
+        f"User question: {query}\n\n"
+        "Global dataset summary (schema, samples, totals):\n"
+        f"{safe_dataset}\n\n"
+        "Filtered subset relevant to the question (if any):\n"
+        f"{safe_relevant}\n\n"
+        "Instructions: Use numbers from the relevant subset when available; otherwise use the global summary. "
+        "Be precise and helpful to a finance stakeholder. Provide 4-8 bullets maximum with key figures and short explanations."
+    )
+
+def _generate_llm_answer(query: str, full_df: pd.DataFrame, relevant_df: pd.DataFrame) -> str:
+    """Call the LLM to produce a data-grounded answer. Falls back gracefully on errors."""
+    if not OPENAI_AVAILABLE or _openai_client is None:
+        return "LLM is not configured. Please set OPENAI_API_KEY to enable AI-enhanced answers."
+
+    try:
+        dataset_summary = _summarize_dataframe_for_prompt(full_df)
+        relevant_summary = _summarize_dataframe_for_prompt(relevant_df if relevant_df is not None else pd.DataFrame())
+
+        system_prompt = _build_llm_system_prompt()
+        user_prompt = _build_llm_user_prompt(query, dataset_summary, relevant_summary)
+
+        model_name = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+        completion = _openai_client.chat.completions.create(
+            model=model_name,
+            temperature=0.2,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+        )
+        answer = completion.choices[0].message.content.strip() if completion and completion.choices else ""
+        if not answer:
+            return "I couldn't generate an answer from the model. Please try rephrasing your question."
+        return answer
+    except Exception as exc:
+        return f"I couldn't contact the AI model ({exc}). Falling back to a simpler analysis."
 
 def create_upload_tab():
     """Create the upload and preview tab."""
@@ -552,17 +680,29 @@ def create_modern_chat_interface():
         with st.spinner("🤔 Processing your question..."):
             try:
                 if query_engine_available and 'final_processed_data' in st.session_state:
-                    # Parse the query
+                    # Parse to get entities and relevant subset
                     parsed_query = parse_natural_language_query(user_input.strip())
-                    
+                    relevant_data = pd.DataFrame()
                     if parsed_query:
-                        # Extract relevant data
-                        relevant_data = extract_relevant_data(st.session_state.final_processed_data, parsed_query['entities'])
-                        
-                        if relevant_data.empty:
-                            response = "I couldn't find any data related to your query. Please try rephrasing your question or check if the data contains the information you're looking for."
-                        else:
-                            # Generate contextual response using native Streamlit components
+                        relevant_data = extract_relevant_data(
+                            st.session_state.final_processed_data,
+                            parsed_query['entities']
+                        )
+
+                    # Prefer LLM answer if configured
+                    if st.session_state.get('use_llm') and OPENAI_AVAILABLE:
+                        response = _generate_llm_answer(
+                            user_input.strip(),
+                            st.session_state.final_processed_data,
+                            relevant_data
+                        )
+                        # If model declined, fall back to deterministic
+                        if response.startswith("LLM is not configured") or response.startswith("I couldn't contact the AI model"):
+                            response = None
+
+                    if not response:
+                        # Deterministic fallback
+                        if parsed_query and not relevant_data.empty:
                             if parsed_query['query_type'] == 'movement_explanation':
                                 response = _generate_clean_movement_explanation(user_input.strip(), relevant_data, parsed_query['entities'])
                             elif parsed_query['query_type'] == 'data_summary':
@@ -571,8 +711,8 @@ def create_modern_chat_interface():
                                 response = _generate_clean_trend_analysis(user_input.strip(), relevant_data, parsed_query['entities'])
                             else:
                                 response = generate_contextual_response(user_input.strip(), relevant_data, parsed_query['entities'])
-                    else:
-                        response = "I'm not sure how to answer that. Please try asking about your financial data, such as 'What drove the increase in marketing expenses?' or 'Show me the top expenses.'"
+                        else:
+                            response = "I couldn't find data related to your question. Try specifying an account or timeframe (e.g., 'marketing trend this quarter')."
                 else:
                     response = "I don't have access to your financial data yet. Please upload your data in the 'Upload & Preview' tab first."
                     
