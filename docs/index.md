@@ -44,6 +44,10 @@ Welcome to the FinGenie documentation hub. This index provides organized access 
 ### Epic 6: Forecasting & Projection Engine
 - **[Epic 6 PRD](prd/epic-6-forecasting-projection-engine.md)** - Forecasting requirements
 
+### Epic 7: Excel-first Document Vectorization & Docs Q&A
+- **[Epic 7 PRD](prd/epic-7-excel-vectorization.md)** - Excel ingestion, vectorization, and Q&A
+- Stories (Draft): 7.1 Ingestion & Normalization, 7.2 Local Vector Store, 7.3 Docs Q&A
+
 ## 🧪 Testing Documentation
 
 ### Story 2.3 Testing
