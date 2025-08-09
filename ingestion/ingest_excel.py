@@ -66,28 +66,18 @@ def normalize_excel(file_bytes: bytes, filename: str) -> Tuple[pd.DataFrame, Lis
         if sdf.empty:
             continue
 
-        # Heuristic: first text-like column is account/label column
-        text_cols = sdf.select_dtypes(include=['object']).columns.tolist()
-        if not text_cols:
-            # create a label column from index
-            sdf['Label'] = [f'Row {i}' for i in range(len(sdf))]
-            label_col = 'Label'
-        else:
-            label_col = text_cols[0]
+        # Prefer using the first column as the account/label column (more reliable for finance sheets)
+        label_col = sdf.columns[0]
 
         period_cols = _detect_period_headers(sdf)
         if not period_cols:
-            # no periods, just two-column [label, amount]
-            numeric_cols = sdf.select_dtypes(include=['number']).columns.tolist()
-            if numeric_cols:
-                tmp = pd.DataFrame({
-                    'Doc': filename,
-                    'Sheet': sheet_name,
-                    'Account': sdf[label_col].astype(str),
-                    'Period': 'Unknown',
-                    'Amount': sdf[numeric_cols[0]].map(_clean_amount)
-                })
-                all_facts.append(tmp)
+            # Fallback: treat any non-first column with digits as a period column (works for Dec-22, December 2022, etc.)
+            candidate_cols = []
+            for col in sdf.columns[1:]:
+                ser = sdf[col].astype(str)
+                if ser.str.contains(r"\d", regex=True, na=False).any():
+                    candidate_cols.append(col)
+            period_cols = candidate_cols
         else:
             # melt into long format
             keep_cols = [label_col] + period_cols
