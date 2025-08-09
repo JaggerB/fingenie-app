@@ -66,16 +66,15 @@ class LocalVectorStore:
             metas = res.get("metadatas", [[]])[0]
             return list(zip(ids, docs, metas))
 
-        # fallback simple scoring
-        def score(item):
-            _, it_text, _ = item
-            return it_text.lower().count(text.lower())
-        items = [(m["id"], m["text"], m["metadata"]) for m in self._mem]
+        # fallback simple scoring over tuples (id, text, metadata)
+        items: List[Tuple[str, str, Dict]] = [
+            (m.get("id", ""), m.get("text", ""), m.get("metadata", {})) for m in self._mem
+        ]
         if where:
-            def ok(md):
+            def ok(md: Dict) -> bool:
                 return all(str(md.get(k)) == str(v) for k, v in where.items())
             items = [it for it in items if ok(it[2])]
-        items.sort(key=score, reverse=True)
+        items.sort(key=lambda it: it[1].lower().count(text.lower()), reverse=True)
         return items[:k]
 
 
