@@ -679,6 +679,7 @@ def create_modern_chat_interface():
         # Generate response
         with st.spinner("🤔 Processing your question..."):
             try:
+                response = None
                 if query_engine_available and 'final_processed_data' in st.session_state:
                     # Parse to get entities and relevant subset
                     parsed_query = parse_natural_language_query(user_input.strip())
