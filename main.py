@@ -1255,8 +1255,9 @@ def create_docs_qa_tab():
             st.metric("Sheets", st.session_state.facts_df['Sheet'].nunique())
 
     st.markdown("---")
+    use_ai = st.checkbox("Use AI analysis (if OPENAI_API_KEY is set)", value=OPENAI_AVAILABLE)
     with st.form("docs_qa_form", clear_on_submit=False):
-        q = st.text_input("Ask a question about your workbooks", placeholder="e.g., Marketing expenses trend in the last 6 months")
+        q = st.text_input("Ask a question about your workbooks", placeholder="e.g., Top 5 cost drivers this quarter vs last")
         submitted = st.form_submit_button("Ask")
 
     if submitted and q.strip():
@@ -1273,7 +1274,13 @@ def create_docs_qa_tab():
             answer_lines.append(f"Records considered: {aggr.get('count', 0)}")
 
         st.subheader("Answer")
-        st.write("\n".join(answer_lines) or "I retrieved relevant rows and citations below.")
+        base_answer = "\n".join(answer_lines) or "I retrieved relevant rows and citations below."
+
+        if use_ai and OPENAI_AVAILABLE:
+            ai_answer = _generate_llm_answer(q.strip(), st.session_state.facts_df, st.session_state.facts_df)
+            st.write(ai_answer)
+        else:
+            st.write(base_answer)
 
         st.subheader("Citations")
         for c in pack.get("citations", [])[:5]:
