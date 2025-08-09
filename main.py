@@ -44,14 +44,36 @@ def initialize_session_state():
         st.session_state.use_llm = True
 
 # Optional OpenAI client (used for higher-quality answers)
-try:
-    from openai import OpenAI  # openai>=1.0.0
-    _OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-    OPENAI_AVAILABLE = bool(_OPENAI_API_KEY)
-    _openai_client = OpenAI(api_key=_OPENAI_API_KEY) if OPENAI_AVAILABLE else None
-except Exception:
-    OPENAI_AVAILABLE = False
-    _openai_client = None
+def _get_openai_client():
+    try:
+        from openai import OpenAI  # openai>=1.0.0
+    except Exception:
+        return None, False, None
+
+    # Prefer Streamlit secrets if present, fallback to env
+    api_key = os.environ.get("OPENAI_API_KEY")
+    try:
+        # st.secrets is available at runtime inside Streamlit
+        if not api_key and hasattr(st, "secrets"):
+            api_key = st.secrets.get("OPENAI_API_KEY", None)
+    except Exception:
+        pass
+
+    if not api_key:
+        return None, False, None
+
+    model_name = os.environ.get("OPENAI_MODEL")
+    try:
+        if not model_name and hasattr(st, "secrets"):
+            model_name = st.secrets.get("OPENAI_MODEL", None)
+    except Exception:
+        pass
+
+    try:
+        client = OpenAI(api_key=api_key)
+        return client, True, (model_name or "gpt-4o-mini")
+    except Exception:
+        return None, False, None
 
 def _summarize_dataframe_for_prompt(dataframe: pd.DataFrame, max_rows: int = 5) -> dict:
     """Create a compact, safe summary of a DataFrame for LLM prompting."""
@@ -142,8 +164,9 @@ def _build_llm_user_prompt(query: str, dataset_summary: dict, relevant_summary: 
 
 def _generate_llm_answer(query: str, full_df: pd.DataFrame, relevant_df: pd.DataFrame) -> str:
     """Call the LLM to produce a data-grounded answer. Falls back gracefully on errors."""
-    if not OPENAI_AVAILABLE or _openai_client is None:
-        return "LLM is not configured. Please set OPENAI_API_KEY to enable AI-enhanced answers."
+    client, available, model_name = _get_openai_client()
+    if not available or client is None:
+        return "LLM is not configured. Please set OPENAI_API_KEY (or Streamlit secrets) to enable AI-enhanced answers."
 
     try:
         dataset_summary = _summarize_dataframe_for_prompt(full_df)
@@ -152,8 +175,7 @@ def _generate_llm_answer(query: str, full_df: pd.DataFrame, relevant_df: pd.Data
         system_prompt = _build_llm_system_prompt()
         user_prompt = _build_llm_user_prompt(query, dataset_summary, relevant_summary)
 
-        model_name = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
-        completion = _openai_client.chat.completions.create(
+        completion = client.chat.completions.create(
             model=model_name,
             temperature=0.2,
             messages=[
@@ -691,7 +713,7 @@ def create_modern_chat_interface():
                         )
 
                     # Prefer LLM answer if configured
-                    if st.session_state.get('use_llm') and OPENAI_AVAILABLE:
+                    if st.session_state.get('use_llm') and _get_openai_client()[1]:
                         response = _generate_llm_answer(
                             user_input.strip(),
                             st.session_state.final_processed_data,
@@ -1255,7 +1277,9 @@ def create_docs_qa_tab():
             st.metric("Sheets", st.session_state.facts_df['Sheet'].nunique())
 
     st.markdown("---")
-    use_ai = st.checkbox("Use AI analysis (if OPENAI_API_KEY is set)", value=OPENAI_AVAILABLE)
+    # Determine availability dynamically (supports Streamlit secrets)
+    _, _available, _ = _get_openai_client()
+    use_ai = st.checkbox("Use AI analysis (if OPENAI_API_KEY is set)", value=_available)
     with st.form("docs_qa_form", clear_on_submit=False):
         q = st.text_input("Ask a question about your workbooks", placeholder="e.g., Top 5 cost drivers this quarter vs last")
         submitted = st.form_submit_button("Ask")
@@ -1276,7 +1300,7 @@ def create_docs_qa_tab():
         st.subheader("Answer")
         base_answer = "\n".join(answer_lines) or "I retrieved relevant rows and citations below."
 
-        if use_ai and OPENAI_AVAILABLE:
+        if use_ai and _get_openai_client()[1]:
             ai_answer = _generate_llm_answer(q.strip(), st.session_state.facts_df, st.session_state.facts_df)
             st.write(ai_answer)
         else:
