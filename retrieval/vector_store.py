@@ -68,9 +68,9 @@ class LocalVectorStore:
 
         # fallback simple scoring
         def score(item):
-            s = item["text"].lower().count(text.lower())
-            return s
-        items = [ (m["id"], m["text"], m["metadata"]) for m in self._mem ]
+            _, it_text, _ = item
+            return it_text.lower().count(text.lower())
+        items = [(m["id"], m["text"], m["metadata"]) for m in self._mem]
         if where:
             def ok(md):
                 return all(str(md.get(k)) == str(v) for k, v in where.items())
