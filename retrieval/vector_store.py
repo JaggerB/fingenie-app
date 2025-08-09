@@ -49,7 +49,8 @@ class LocalVectorStore:
         return None
 
     def add(self, ids: List[str], texts: List[str], metadatas: List[Dict]) -> None:
-        if CHROMA_AVAILABLE and self._col is not None:
+        # Only use Chroma when an embedding function is configured; otherwise use in-memory fallback
+        if CHROMA_AVAILABLE and self._col is not None and getattr(self, "_use_openai", False):
             self._col.add(ids=ids, documents=texts, metadatas=metadatas)
             return
         for i, t, m in zip(ids, texts, metadatas):
