@@ -23,6 +23,8 @@ class LocalVectorStore:
         self.collection_name = collection
         self._client = None
         self._col = None
+        # Always have an in-memory fallback buffer
+        self._mem: List[Dict] = []
 
         self._use_openai = bool(os.environ.get("OPENAI_EMBEDDINGS"))
         self._openai_model = os.environ.get("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
@@ -39,8 +41,8 @@ class LocalVectorStore:
                 ),
             )
         else:
-            # Lightweight fallback
-            self._mem: List[Dict] = []
+            # Chroma not available; use in-memory index only
+            pass
 
     def _embed(self, texts: List[str]) -> Optional[List[List[float]]]:
         if CHROMA_AVAILABLE:
@@ -57,7 +59,7 @@ class LocalVectorStore:
             self._mem.append({"id": i, "text": t, "metadata": m})
 
     def query(self, text: str, where: Optional[Dict] = None, k: int = 8) -> List[Tuple[str, str, Dict]]:
-        if CHROMA_AVAILABLE and self._col is not None:
+        if CHROMA_AVAILABLE and self._col is not None and getattr(self, "_use_openai", False):
             res = self._col.query(query_texts=[text], n_results=k, where=where or {})
             docs = res.get("documents", [[]])[0]
             ids = res.get("ids", [[]])[0]
