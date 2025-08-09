@@ -1349,12 +1349,8 @@ def create_docs_qa_tab():
         base_answer = "\n".join(answer_lines) or "I retrieved relevant rows and citations below."
 
         if use_ai and _get_openai_client()[1]:
-            ai_lines = _ai_plan_and_execute(q.strip(), st.session_state.facts_df)
-            if ai_lines:
-                st.write("\n".join(ai_lines))
-            else:
-                ai_answer = _generate_llm_answer(q.strip(), st.session_state.facts_df, filtered_df if not filtered_df.empty else facts_df)
-                st.write(ai_answer)
+            ai_answer = _generate_llm_answer(q.strip(), st.session_state.facts_df, filtered_df if not filtered_df.empty else facts_df)
+            st.write(ai_answer)
         elif use_ai and not _available:
             st.warning("AI was toggled on, but no API key was detected. Add OPENAI_API_KEY and restart the app.")
         else:
@@ -1525,43 +1521,6 @@ def _compute_two_period_diff_lines(df: pd.DataFrame, p1: str, p2: str):
         f"Amount {p2 or 'P2'}: ${v2:,.2f}",
         f"Difference: ${diff:,.2f} ({pct:+.1f}%)"
     ]
-
-
-def _ai_plan_and_execute(query: str, df: pd.DataFrame):
-    """Lightweight planner: convert question into a plan, execute deterministically."""
-    if df is None or df.empty:
-        return []
-    q = (query or "").lower()
-    # Detect operation
-    op = 'difference' if any(k in q for k in ['difference', 'delta', 'change', 'vs', 'versus', 'compare']) else 'summary'
-    # Extract account phrase and periods
-    p1, p2 = _extract_two_month_labels(query)
-    phrase = _extract_account_phrase(query)
-    plan = { 'op': op, 'account_phrase': phrase, 'period1': p1, 'period2': p2 }
-
-    # Execute
-    exec_df = df.copy()
-    if phrase:
-        exec_df = _filter_by_account_phrase(exec_df, phrase)
-    lines = []
-    if op == 'difference' and (p1 or p2):
-        lines.extend(_compute_two_period_diff_lines(exec_df, p1, p2))
-    else:
-        # Fallback: compute total for detected month or overall
-        label = _extract_month_label(query)
-        if label and 'Period' in exec_df.columns:
-            period_str = exec_df['Period'].astype(str)
-            abbr = label.split('-')[0]
-            mask = period_str.str.contains(abbr, case=False, na=False)
-            if '-' in label:
-                yy = label.split('-')[1]
-                mask = mask & period_str.str.contains(yy, case=False, na=False)
-            exec_df = exec_df[mask]
-        total = float(exec_df['Amount'].sum()) if 'Amount' in exec_df.columns else 0.0
-        lines.append(f"Total{' for ' + label if label else ''}{' (' + phrase + ')' if phrase else ''}: ${total:,.2f}")
-    # Include a compact plan echo for transparency
-    lines.append(f"Plan: {plan}")
-    return lines
 
 if __name__ == "__main__":
     main() 
