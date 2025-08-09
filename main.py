@@ -1305,16 +1305,6 @@ def create_docs_qa_tab():
         # Deterministic summary
         answer_lines = []
         target_df = filtered_df if not filtered_df.empty else facts_df
-        # Add two-period comparison if present in the query
-        p1, p2 = _extract_two_month_labels(q)
-        if p1 or p2:
-            compare_phrase = _extract_account_phrase(q)
-            comp_df = facts_df.copy()
-            if compare_phrase:
-                comp_df = _filter_by_account_phrase(comp_df, compare_phrase)
-            diff_lines = _compute_two_period_diff_lines(comp_df, p1, p2)
-            if diff_lines:
-                answer_lines.extend(diff_lines)
         if not target_df.empty and "Amount" in target_df.columns:
             total = float(target_df["Amount"].sum())
             count = int(target_df.shape[0])
@@ -1435,92 +1425,6 @@ def _filter_facts_by_query(query: str, facts_df: pd.DataFrame) -> pd.DataFrame:
         mask = mask | period_str.str.contains(full_name, case=False, na=False)
         df = df[mask]
     return df
-
-
-def _extract_account_phrase(query: str) -> str:
-    q = (query or "").lower()
-    import re
-    candidates = [
-        r"total current assets", r"current assets", r"accounts receivable", r"accounts payable",
-        r"cash and cash equivalents", r"inventory", r"gross profit", r"cost of sales", r"operating expenses",
-        r"rent revenue", r"rent", r"marketing", r"utilities", r"revenue", r"income", r"expenses"
-    ]
-    for pat in candidates:
-        m = re.search(pat, q)
-        if m:
-            return m.group(0)
-    return ""
-
-
-def _filter_by_account_phrase(df: pd.DataFrame, phrase: str) -> pd.DataFrame:
-    if df is None or df.empty or not phrase:
-        return df if df is not None else pd.DataFrame()
-    import re
-    tokens = [t for t in re.findall(r"[A-Za-z]+", phrase.lower()) if t not in {"the","of","and","total","between","difference","vs","versus","in","for"}]
-    if not tokens:
-        return df
-    s = df["Account"].astype(str).str.lower()
-    mask = True
-    for t in tokens:
-        t_norm = t[:-1] if t.endswith("s") else t
-        mask = mask & s.str.contains(t_norm, na=False)
-    return df[mask]
-
-
-def _extract_two_month_labels(query: str):
-    q = (query or "").lower()
-    import re
-    months = {
-        'jan': 'Jan', 'january': 'Jan', 'feb': 'Feb', 'february': 'Feb', 'mar': 'Mar', 'march': 'Mar',
-        'apr': 'Apr', 'april': 'Apr', 'may': 'May', 'jun': 'Jun', 'june': 'Jun', 'jul': 'Jul', 'july': 'Jul',
-        'aug': 'Aug', 'august': 'Aug', 'sep': 'Sep', 'sept': 'Sep', 'september': 'Sep', 'oct': 'Oct', 'october': 'Oct',
-        'nov': 'Nov', 'november': 'Nov', 'dec': 'Dec', 'december': 'Dec'
-    }
-    tokens = []
-    for k, ab in months.items():
-        for m in re.finditer(k, q):
-            tokens.append((m.start(), ab))
-    tokens.sort()
-    if not tokens:
-        return "", ""
-    ymatch = re.search(r"20\d{2}", q)
-    yy = ymatch.group(0)[-2:] if ymatch else ""
-    labels = []
-    for _, ab in tokens[:2]:
-        labels.append(f"{ab}-{yy}" if yy else ab)
-    while len(labels) < 2:
-        labels.append("")
-    return labels[0], labels[1]
-
-
-def _compute_two_period_diff_lines(df: pd.DataFrame, p1: str, p2: str):
-    if df is None or df.empty or (not p1 and not p2) or "Period" not in df.columns or "Amount" not in df.columns:
-        return []
-    period_s = df["Period"].astype(str)
-    def match_period(label: str):
-        if not label:
-            return df
-        abbr = label.split('-')[0]
-        mask = period_s.str.contains(abbr, case=False, na=False)
-        if '-' in label:
-            yy = label.split('-')[1]
-            mask = mask & period_s.str.contains(yy, case=False, na=False)
-        full_map = { 'Jan':'January', 'Feb':'February', 'Mar':'March', 'Apr':'April', 'May':'May', 'Jun':'June', 'Jul':'July', 'Aug':'August', 'Sep':'September', 'Oct':'October', 'Nov':'November', 'Dec':'December' }
-        full_name = full_map.get(abbr, abbr)
-        mask = mask | period_s.str.contains(full_name, case=False, na=False)
-        return df[mask]
-    d1 = match_period(p1)
-    d2 = match_period(p2)
-    v1 = float(d1["Amount"].sum()) if not d1.empty else 0.0
-    v2 = float(d2["Amount"].sum()) if not d2.empty else 0.0
-    diff = v2 - v1
-    pct = (diff / v1 * 100) if v1 else 0.0
-    return [
-        f"Comparison: {p1 or 'Period 1'} vs {p2 or 'Period 2'}",
-        f"Amount {p1 or 'P1'}: ${v1:,.2f}",
-        f"Amount {p2 or 'P2'}: ${v2:,.2f}",
-        f"Difference: ${diff:,.2f} ({pct:+.1f}%)"
-    ]
 
 if __name__ == "__main__":
     main() 
