@@ -1283,18 +1283,7 @@ def create_docs_qa_tab():
             st.metric("Sheets", st.session_state.facts_df['Sheet'].nunique())
 
     st.markdown("---")
-    # Let user persist their API key via UI (stored in session only)
-    with st.expander("AI Configuration", expanded=False):
-        st.caption("Optional: set your OpenAI API key here to enable AI-written summaries. Stored only in this session.")
-        _key_in = st.text_input("OPENAI_API_KEY (session)", type="password", value=st.session_state.get("OPENAI_API_KEY_OVERRIDE", ""))
-        _model_in = st.text_input("OPENAI_MODEL (optional)", value=os.environ.get("OPENAI_MODEL", "gpt-4o-mini"))
-        save_ai = st.button("Save AI Settings")
-        if save_ai:
-            st.session_state["OPENAI_API_KEY_OVERRIDE"] = _key_in.strip()
-            os.environ["OPENAI_MODEL"] = _model_in.strip() or "gpt-4o-mini"
-            st.success("AI settings saved for this session.")
-
-    # Determine availability dynamically (supports session override, secrets, env)
+    # Determine availability dynamically (via secrets/env)
     client_dbg, _available, model_dbg = _get_openai_client()
     use_ai = st.checkbox("Use AI analysis (if OPENAI_API_KEY is set)", value=_available)
     if _available:
@@ -1356,6 +1345,21 @@ def create_docs_qa_tab():
             st.warning("AI was toggled on, but no API key was detected. Add OPENAI_API_KEY and restart the app.")
         else:
             st.write(base_answer)
+
+        # Query debug
+        with st.expander("Debug (query)", expanded=False):
+            acc = _extract_account_keyword(q)
+            month = _extract_month_label(q)
+            st.write({
+                "account_keyword": acc,
+                "parsed_month_label": month,
+                "facts_rows": 0 if facts_df is None else int(facts_df.shape[0]),
+                "filtered_rows": 0 if filtered_df is None else int(filtered_df.shape[0]),
+            })
+            if facts_df is not None and not facts_df.empty:
+                if acc:
+                    st.write("sample_accounts", list(facts_df["Account"].astype(str).dropna().unique())[:15])
+                st.write("sample_periods", list(facts_df["Period"].astype(str).dropna().unique())[:15])
 
         # Citations
         st.subheader("Citations")
