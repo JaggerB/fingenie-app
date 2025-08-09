@@ -16,6 +16,8 @@ openai>=1.0.0
 
 # Visualization libraries for Story 4.1
 plotly>=5.17.0
+chromadb>=0.5.3
+sentence-transformers>=3.0.1
 
 # Testing dependencies for Story 3.2 QA
 pytest>=7.4.0

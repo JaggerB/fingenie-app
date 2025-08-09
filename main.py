@@ -1182,13 +1182,14 @@ def main():
     """, unsafe_allow_html=True)
     
     # Create tabs with modern styling
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
         "📊 Upload & Preview",
         "🔍 Executive Overview", 
         "📈 Movement Analysis",
         "⚠️ Anomaly Detection",
         "📊 Visualizations",
-        "💬 Chat Interface"
+        "💬 Chat Interface",
+        "📄 Docs Q&A (Excel)"
     ])
     
     with tab1:
@@ -1208,6 +1209,75 @@ def main():
     
     with tab6:
         create_modern_chat_interface()
+
+    with tab7:
+        create_docs_qa_tab()
+
+
+def create_docs_qa_tab():
+    import os
+    import json
+    from ingestion.ingest_excel import normalize_excel
+    from retrieval.vector_store import LocalVectorStore
+    from rag.pipeline import build_evidence_pack
+
+    st.header("📄 Docs Q&A (Excel)")
+    st.info("Upload Excel workbooks, index locally, and ask questions. Runs fully offline by default.")
+
+    if "docs_store" not in st.session_state:
+        st.session_state.docs_store = LocalVectorStore(path=".vectordb", collection="excel_docs")
+    if "facts_df" not in st.session_state:
+        st.session_state.facts_df = pd.DataFrame(columns=["Doc","Sheet","Account","Period","Amount"]) 
+
+    up_files = st.file_uploader("Upload Excel files", type=["xlsx","xls"], accept_multiple_files=True)
+    if up_files:
+        with st.spinner("Indexing workbooks..."):
+            store = st.session_state.docs_store
+            for f in up_files:
+                content = f.read()
+                facts, chunks = normalize_excel(content, f.name)
+                if not facts.empty:
+                    st.session_state.facts_df = pd.concat([st.session_state.facts_df, facts], ignore_index=True)
+                if chunks:
+                    store.add(ids=[c['id'] for c in chunks],
+                              texts=[c['text'] for c in chunks],
+                              metadatas=[c['metadata'] for c in chunks])
+            st.success("Indexing complete.")
+
+    # Simple stats
+    if not st.session_state.facts_df.empty:
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            st.metric("Facts", len(st.session_state.facts_df))
+        with c2:
+            st.metric("Docs", st.session_state.facts_df['Doc'].nunique())
+        with c3:
+            st.metric("Sheets", st.session_state.facts_df['Sheet'].nunique())
+
+    st.markdown("---")
+    with st.form("docs_qa_form", clear_on_submit=False):
+        q = st.text_input("Ask a question about your workbooks", placeholder="e.g., Marketing expenses trend in the last 6 months")
+        submitted = st.form_submit_button("Ask")
+
+    if submitted and q.strip():
+        store = st.session_state.docs_store
+        facts_df = st.session_state.facts_df
+        filters = {}
+        pack = build_evidence_pack(q, facts_df, store, filters)
+
+        # Deterministic summary
+        answer_lines = []
+        aggr = pack.get("aggregates", {})
+        if aggr:
+            answer_lines.append(f"Total Amount in retrieved scope: ${aggr.get('total', 0):,.2f}")
+            answer_lines.append(f"Records considered: {aggr.get('count', 0)}")
+
+        st.subheader("Answer")
+        st.write("\n".join(answer_lines) or "I retrieved relevant rows and citations below.")
+
+        st.subheader("Citations")
+        for c in pack.get("citations", [])[:5]:
+            st.write(f"- {c.get('doc')} › {c.get('sheet')} (row {c.get('row')}): {c.get('excerpt')}")
 
 if __name__ == "__main__":
     main() 
