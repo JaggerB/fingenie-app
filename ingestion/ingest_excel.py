@@ -78,21 +78,25 @@ def normalize_excel(file_bytes: bytes, filename: str) -> Tuple[pd.DataFrame, Lis
                 if ser.str.contains(r"\d", regex=True, na=False).any():
                     candidate_cols.append(col)
             period_cols = candidate_cols
-        else:
-            # melt into long format
-            keep_cols = [label_col] + period_cols
-            subset = sdf[keep_cols].copy()
-            long_df = subset.melt(id_vars=[label_col], var_name='Period', value_name='Amount')
-            long_df['Amount'] = long_df['Amount'].map(_clean_amount)
-            long_df.dropna(subset=['Amount'], inplace=True)
-            long_df = long_df[long_df['Amount'] != 0]
-            long_df.rename(columns={label_col: 'Account'}, inplace=True)
-            # Normalize text fields
-            long_df['Account'] = long_df['Account'].astype(str).str.strip()
-            long_df['Period'] = long_df['Period'].astype(str).str.strip()
-            long_df.insert(0, 'Doc', filename)
-            long_df.insert(1, 'Sheet', sheet_name)
-            all_facts.append(long_df[['Doc', 'Sheet', 'Account', 'Period', 'Amount']])
+
+        # If still nothing after fallback, skip sheet
+        if not period_cols:
+            continue
+
+        # melt into long format
+        keep_cols = [label_col] + period_cols
+        subset = sdf[keep_cols].copy()
+        long_df = subset.melt(id_vars=[label_col], var_name='Period', value_name='Amount')
+        long_df['Amount'] = long_df['Amount'].map(_clean_amount)
+        long_df.dropna(subset=['Amount'], inplace=True)
+        long_df = long_df[long_df['Amount'] != 0]
+        long_df.rename(columns={label_col: 'Account'}, inplace=True)
+        # Normalize text fields
+        long_df['Account'] = long_df['Account'].astype(str).str.strip()
+        long_df['Period'] = long_df['Period'].astype(str).str.strip()
+        long_df.insert(0, 'Doc', filename)
+        long_df.insert(1, 'Sheet', sheet_name)
+        all_facts.append(long_df[['Doc', 'Sheet', 'Account', 'Period', 'Amount']])
 
         # Build simple text chunks per account row for retrieval
         try:
