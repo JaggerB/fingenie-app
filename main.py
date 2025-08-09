@@ -52,6 +52,12 @@ def _get_openai_client():
 
     # Prefer Streamlit secrets if present, fallback to env
     api_key = os.environ.get("OPENAI_API_KEY")
+    # Session override (set from UI)
+    try:
+        if hasattr(st, "session_state") and st.session_state.get("OPENAI_API_KEY_OVERRIDE"):
+            api_key = st.session_state.get("OPENAI_API_KEY_OVERRIDE") or api_key
+    except Exception:
+        pass
     try:
         # st.secrets is available at runtime inside Streamlit
         if not api_key and hasattr(st, "secrets"):
@@ -1277,9 +1283,24 @@ def create_docs_qa_tab():
             st.metric("Sheets", st.session_state.facts_df['Sheet'].nunique())
 
     st.markdown("---")
-    # Determine availability dynamically (supports Streamlit secrets)
-    _, _available, _ = _get_openai_client()
+    # Let user persist their API key via UI (stored in session only)
+    with st.expander("AI Configuration", expanded=False):
+        st.caption("Optional: set your OpenAI API key here to enable AI-written summaries. Stored only in this session.")
+        _key_in = st.text_input("OPENAI_API_KEY (session)", type="password", value=st.session_state.get("OPENAI_API_KEY_OVERRIDE", ""))
+        _model_in = st.text_input("OPENAI_MODEL (optional)", value=os.environ.get("OPENAI_MODEL", "gpt-4o-mini"))
+        save_ai = st.button("Save AI Settings")
+        if save_ai:
+            st.session_state["OPENAI_API_KEY_OVERRIDE"] = _key_in.strip()
+            os.environ["OPENAI_MODEL"] = _model_in.strip() or "gpt-4o-mini"
+            st.success("AI settings saved for this session.")
+
+    # Determine availability dynamically (supports session override, secrets, env)
+    client_dbg, _available, model_dbg = _get_openai_client()
     use_ai = st.checkbox("Use AI analysis (if OPENAI_API_KEY is set)", value=_available)
+    if _available:
+        st.caption(f"AI status: available ({model_dbg})")
+    else:
+        st.caption("AI status: not configured. Set OPENAI_API_KEY (env or .streamlit/secrets) and restart the app.")
     with st.form("docs_qa_form", clear_on_submit=False):
         q = st.text_input("Ask a question about your workbooks", placeholder="e.g., Top 5 cost drivers this quarter vs last")
         submitted = st.form_submit_button("Ask")
@@ -1303,6 +1324,8 @@ def create_docs_qa_tab():
         if use_ai and _get_openai_client()[1]:
             ai_answer = _generate_llm_answer(q.strip(), st.session_state.facts_df, st.session_state.facts_df)
             st.write(ai_answer)
+        elif use_ai and not _available:
+            st.warning("AI was toggled on, but no API key was detected. Add OPENAI_API_KEY and restart the app.")
         else:
             st.write(base_answer)
 
