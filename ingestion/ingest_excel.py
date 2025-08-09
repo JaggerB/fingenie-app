@@ -44,6 +44,22 @@ def _detect_period_headers(df: pd.DataFrame) -> List[str]:
         headers = [str(c) for c in num_cols]
     return headers
 
+def _infer_month_header_for_column(df: pd.DataFrame, column: str, scan_rows: int = 20) -> str:
+    """Look down the column for a cell containing a month label like 'Dec-22' or 'December 2022'.
+    Returns the found label or an empty string if none.
+    """
+    month_tokens = [
+        'jan','january','feb','february','mar','march','apr','april','may','jun','june','jul','july',
+        'aug','august','sep','sept','september','oct','october','nov','november','dec','december'
+    ]
+    limit = min(scan_rows, len(df))
+    for r in range(limit):
+        cell = str(df.iloc[r][column])
+        low = cell.lower()
+        if any(tok in low for tok in month_tokens):
+            return cell.strip()
+    return ""
+
 
 def normalize_excel(file_bytes: bytes, filename: str) -> Tuple[pd.DataFrame, List[Dict]]:
     """
@@ -82,6 +98,17 @@ def normalize_excel(file_bytes: bytes, filename: str) -> Tuple[pd.DataFrame, Lis
         # If still nothing after fallback, skip sheet
         if not period_cols:
             continue
+
+        # If period columns are generic like 'Unnamed: X', try inferring month names from the first rows
+        rename_map: Dict[str, str] = {}
+        for col in period_cols:
+            if str(col).startswith('Unnamed'):
+                inferred = _infer_month_header_for_column(sdf, col)
+                if inferred:
+                    rename_map[col] = inferred
+        if rename_map:
+            sdf = sdf.rename(columns=rename_map)
+            period_cols = [rename_map.get(c, c) for c in period_cols]
 
         # melt into long format
         keep_cols = [label_col] + period_cols
